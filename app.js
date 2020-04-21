@@ -29,11 +29,13 @@ app.use((req, res, next) => {
 });
 
 /**
+ * Conexion a la base de datos
+ */
+const mongooseConnection = require('./lib/connectMongoose');
+
+/**
  * API Routes
  */
-
-
-
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/apiv1/infojobs/provinces', require('./routes/apiv1/infojobs/provinces'));
