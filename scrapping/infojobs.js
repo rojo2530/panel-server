@@ -10,52 +10,155 @@ const endpoint = 'https://api.infojobs.net/api/7/offer'
 const infojobsApi = () => {
   return {
     getProvinces: async () => {
-      const endpoint = 'https://api.infojobs.net/api/1/dictionary/province?parent=17'
+      const endpoint =
+        'https://api.infojobs.net/api/1/dictionary/province?parent=17'
 
-      const browser = await puppeteer.launch({headless: true})
+      try {
+        const browser = await puppeteer.launch({headless: true})
 
-      const page = await browser.newPage()
+        const page = await browser.newPage()
 
-      await page.goto(URL, {waitUntil: 'domcontentloaded'})
+        await page.goto(URL, {waitUntil: 'domcontentloaded'})
 
-      await page.focus('#apiuri')
+        await page.focus('#apiuri')
 
-      await page.keyboard.type(endpoint)
+        await page.keyboard.type(endpoint)
 
-      await page.$eval('#apiexecutionform', (form) => form.submit())
-      await page.waitFor(1000)
+        await page.$eval('#apiexecutionform', (form) => form.submit())
+        await page.waitFor(1000)
 
-      const result = await page.evaluate(() => {
-        return document.getElementById('responseBody').textContent
-      })
+        const result = await page.evaluate(() => {
+          return document.getElementById('responseBody').textContent
+        })
 
-      return JSON.parse(result)
+        const provinces = JSON.parse(result)
+
+        const provincesResult = provinces.map(
+          ({parent, ...province}) => province,
+        )
+
+        return provincesResult
+      } catch (error) {
+        console.log(error)
+      }
     },
 
-    getCategories:  async () => {
+    getCategories: async () => {
       const endpoint = 'https://api.infojobs.net/api/1/dictionary/category'
 
-      const browser = await puppeteer.launch({headless: true})
+      try {
+        const browser = await puppeteer.launch({headless: true})
 
-      const page = await browser.newPage()
+        const page = await browser.newPage()
 
-      await page.goto(URL, {waitUntil: 'domcontentloaded'})
+        await page.goto(URL, {waitUntil: 'domcontentloaded'})
 
-      await page.focus('#apiuri')
+        await page.focus('#apiuri')
 
-      await page.keyboard.type(endpoint)
+        await page.keyboard.type(endpoint)
 
-      await page.$eval('#apiexecutionform', (form) => form.submit())
-      await page.waitFor(1000)
+        await page.$eval('#apiexecutionform', (form) => form.submit())
+        await page.waitFor(1000)
 
-      const result = await page.evaluate(() => {
-        return document.getElementById('responseBody').textContent
-      })
+        const result = await page.evaluate(() => {
+          return document.getElementById('responseBody').textContent
+        })
 
-      return JSON.parse(result)
+        return JSON.parse(result)
+      } catch (error) {
+        console.log(error)
+      }
+    },
+
+    getJobs: async (search = 'teletrabajo', maxResults = 200) => {
+      const endpoint = 'https://api.infojobs.net/api/7/offer'
+
+      //Select date today in format rfc3339
+      const today = new Date()
+      today.setHours('00', '00')
+      const todayRFC339 = today.toISOString().split('.')[0] + 'Z'
+
+      console.log(todayRFC339)
+
+      try {
+        const browser = await puppeteer.launch({headless: true})
+        const page = await browser.newPage()
+
+        const jobsDetail = []
+
+        await page.goto(URL, {waitUntil: 'domcontentloaded'})
+
+        await page.focus('#apiuri')
+
+        if (search) {
+          await page.keyboard.type(
+            endpoint +
+              '?q=' +
+              search +
+              '&order=updated-desc&' +
+              'publishedMin=' +
+              todayRFC339 +
+              '&maxResults=' +
+              maxResults,
+          )
+
+          await page.$eval('#apiexecutionform', (form) => form.submit())
+          await page.waitFor(1000)
+
+          const result = await page.evaluate(() => {
+            const jobsIds = document.getElementById('responseBody')
+            return jobsIds.textContent
+          })
+
+          const jobs = JSON.parse(result)
+
+          if (!jobs.offers) {
+            return []
+          }
+
+          for (let offer of jobs.offers) {
+            await page.focus('#apiuri')
+            const input = await page.$('#apiuri')
+            await input.click({clickCount: 3})
+            await page.keyboard.type(endpoint + '/' + offer.id)
+
+            await page.$eval('#apiexecutionform', (form) => form.submit())
+            await page.waitFor(1000)
+
+            const jobDetail = await page.evaluate(() => {
+              const job = document.getElementById('responseBody')
+              return job.textContent
+            })
+
+            jobsDetail.push(JSON.parse(jobDetail))
+          }
+
+          await browser.close()
+
+          return {
+            currentPage: jobs.currentPage,
+            pageSize: jobs.pageSize,
+            totalResults: jobs.totalResults,
+            currentResults: jobs.currentResults,
+            totalPages: jobs.totalPages,
+            offers: jobsDetail,
+          }
+        } else {
+          return []
+        }
+      } catch (error) {
+        console.log(error)
+      }
     },
   }
 }
+
+const {getJobs} = infojobsApi()
+
+;(async () => {
+  const jobs = await getJobs('100% remoto', 3)
+  console.log(jobs)
+})()
 
 module.exports = infojobsApi
 

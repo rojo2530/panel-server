@@ -40,6 +40,15 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/apiv1/infojobs/provinces', require('./routes/apiv1/infojobs/provinces'));
 app.use('/apiv1/infojobs/categories', require('./routes/apiv1/infojobs/categories'));
+app.use('/apiv1/main/provinces', require('./routes/apiv1/main/provinces'));
+app.use('/apiv1/main/categories', require('./routes/apiv1/main/categories'));
+app.use('/apiv1/main/jobs', require('./routes/apiv1/main/jobs'));
+app.use('/apiv1/infojobs/jobs', require('./routes/apiv1/infojobs/jobs'));
+
+
+
+
+
 
 
 // catch 404 and forward to error handler
