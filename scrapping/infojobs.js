@@ -76,10 +76,10 @@ const infojobsApi = () => {
       //Select date today in format rfc3339
       const today = new Date()
       today.setHours('00', '00')
-      const todayRFC339 = today.toISOString().split('.')[0] + 'Z'
+      const todayRFC339 = today.toISOString().split('.')[0] + 'Z';
 
-      console.log(todayRFC339)
-
+      console.log(todayRFC339);
+      
       try {
         const browser = await puppeteer.launch({headless: true})
         const page = await browser.newPage()

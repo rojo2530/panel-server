@@ -8,7 +8,7 @@ const jobSchema = new Schema({
     /**
     * id unique for job
     */
-    id: { type: Number, required: true, index: true },
+    id: { type: String, required: true, index: true },
 
     /**
     * title for offerJob
@@ -87,14 +87,23 @@ const jobSchema = new Schema({
 
     /**
      * Contract Type, for example 'Indefinido
+    */
+    contractType: { type: String, max: 150},
+
+    /**
+     * status: []
      */
-    contractType: { type: String, max: 150}
+    status: { type: String, enum: ['migrado', 'publicado', 'descartado'], required: true, index: true, default: 'migrado' },
   },
 
 );
 
-jobSchema.statics.list = function () {
-  const query = Job.find({});
+jobSchema.virtual('new').get(function() {
+  return this.published === this.updated;
+});
+
+jobSchema.statics.list = function ({ filter }) {
+  const query = Job.find(filter).populate('province').populate('category');
 
   return query.exec();
 }
