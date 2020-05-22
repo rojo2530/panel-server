@@ -5,6 +5,7 @@ const Job = require('../../models/Job');
 const Province = require('../../models/Province');
 const Category = require('../../models/Category');
 const config = require('../../lib/config');
+const moment = require('moment');
 
 const {getProvinces, getJobs} = infojobsApi();
 
@@ -15,7 +16,9 @@ const jobsController = () => {
      */
     index: async (req, res, next) => {
       try {
-        const jobs = await getJobs('teletrabajo', 2)
+        req.setTimeout(0);
+
+        const jobs = await getJobs('teletrabajo', 10)
 
         return res.json({success: true, jobs})
       } catch (err) {
@@ -31,11 +34,17 @@ const jobsController = () => {
 
     load: async (req, res, next) => {
       try {
-        const jobs = await getJobs('teletrabajo');
+        req.setTimeout(0);
 
-        console.log('jobs', jobs);
+        console.log('entra en load antes de la petición');
+
+        const jobs = await getJobs('teletrabajo', 150);
+
         const offers = []
         let registersUpdated = 0;
+
+
+        console.log('entra en load');
 
         if (jobs) {
           for (let offer of jobs.offers) {
@@ -43,20 +52,25 @@ const jobsController = () => {
             const category = await Category.findOne({id: offer.category.id});
             let job = await Job.findOne({id: offer.id});
 
+            const desiredRequirements = `<b>Requisitos deseados</b>\r\n ${offer.desiredRequirements}`;
+            const minRequirements = `<b>Requisitos mínimos</b>\r\n ${offer.minRequirements}`;
             //if job exits, then update
             if (job) {
               registersUpdated++;
+              console.log('Job Updated', offer.id, offer.updateDate, offer.province);
+
               
-              job.title = offer.title || job.title;
+ 
+              job.title = offer.title;
               job.province = province._id || job.province;
               job.link = offer.link || job.link;
               job.category = category._id || job.category;
               job.salaryMin = offer.minPay ? offer.minPay.amount : 0;
               job.salaryMax = offer.maxPay ? offer.maxPay.amount : 0;
               job.salaryDescription = offer.salaryDescription || job.salaryDescription;
-              job.published = offer.published || job.published;
-              job.updated = offer.updated || job.updated;
-              job.description = offer.minRequirements + '\n\n\n' + offer.description;
+              job.published = offer.creationDate;
+              job.updated = offer.updateDate;
+              job.description = minRequirements + '\r\n\r\n' + desiredRequirements + '\r\n\r\n' + '<b>Descripción</b>\r\n' + offer.description;
               job.companyName = offer.profile.name || job.companyName;
               job.companyLink = offer.profile.web || job.companyLink;
               job.companyLogo = offer.profile.logoUrl || job.companyLogo;
@@ -65,6 +79,8 @@ const jobsController = () => {
               await job.save();
             
             } else {
+              console.log('Job Created', offer.id, offer.updateDate, offer.creationDate);
+
               offers.push({
                 id: offer.id,
                 title: offer.title,
@@ -76,7 +92,7 @@ const jobsController = () => {
                 salaryDescription: offer.salaryDescription,
                 published: offer.creationDate,
                 updated: offer.updateDate,
-                description: offer.minRequirements + '\n\n\n' + offer.description,
+                description: minRequirements + '\r\n\r\n' + desiredRequirements + '\r\n\r\n' + '<b>Descripción</b>\r\n' + offer.description,
                 companyName: offer.profile.name,
                 companyLink: offer.profile.web,
                 companyLogo: offer.profile.logoUrl || '',
@@ -90,7 +106,8 @@ const jobsController = () => {
           const reg = await Job.insertMany(offers);
 
           return res.json({
-            success: true, 
+            success: true,
+            lastImport: moment(new Date()).toLocaleString(),
             newRegisters: reg.length || 0,
             updatedRegisters: registersUpdated,  
             TotalResults: jobs.totalResults, 

@@ -4,6 +4,11 @@ const mongoose = require('mongoose');
 
 const Schema = mongoose.Schema;
 
+const moment = require('moment')
+
+const opts = { toJSON: { virtuals: true } };
+
+
 const jobSchema = new Schema({  
     /**
     * id unique for job
@@ -93,17 +98,20 @@ const jobSchema = new Schema({
     /**
      * status: []
      */
-    status: { type: String, enum: ['migrado', 'publicado', 'descartado'], required: true, index: true, default: 'migrado' },
+    status: { type: String, enum: ['migrado', 'publicado', 'descartado', 'candidato'], required: true, index: true, default: 'migrado' },
   },
 
-);
+opts);
 
-jobSchema.virtual('new').get(function() {
-  return this.published === this.updated;
+jobSchema.virtual('newJob').get(function() {
+  return moment(this.published).isSame(moment(), 'day');
 });
 
-jobSchema.statics.list = function ({ filter }) {
+jobSchema.statics.list = function ({ filter, limit, sort }) {
   const query = Job.find(filter).populate('province').populate('category');
+
+  query.limit(limit);
+  query.sort(sort);
 
   return query.exec();
 }

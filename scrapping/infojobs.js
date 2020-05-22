@@ -1,4 +1,8 @@
-'use strict'
+'use strict';
+
+const Job = require('../models/Job');
+const moment = require('moment');
+
 
 const puppeteer = require('puppeteer')
 
@@ -71,22 +75,25 @@ const infojobsApi = () => {
     },
 
     getJobs: async (search = 'teletrabajo', maxResults = 200) => {
-      const endpoint = 'https://api.infojobs.net/api/7/offer'
+      const endpoint = 'https://api.infojobs.net/api/7/offer';
 
       //Select date today in format rfc3339
       const today = new Date()
       today.setHours('00', '00')
-      const todayRFC339 = today.toISOString().split('.')[0] + 'Z';
+      let todayRFC339 = today.toISOString().split('.')[0] + 'Z';
+
 
       console.log(todayRFC339);
-      
+
       try {
         const browser = await puppeteer.launch({headless: true})
-        const page = await browser.newPage()
+        const page = await browser.newPage();
+        
+        console.log('Entra en getJobs de InfoAPI (Scrapping)');
 
         const jobsDetail = []
 
-        await page.goto(URL, {waitUntil: 'domcontentloaded'})
+        await page.goto(URL, {waitUntil: 'domcontentloaded', timeout: 0})
 
         await page.focus('#apiuri')
 
@@ -103,27 +110,53 @@ const infojobsApi = () => {
           )
 
           await page.$eval('#apiexecutionform', (form) => form.submit())
-          await page.waitFor(1000)
+          await page.waitFor(700)
 
           const result = await page.evaluate(() => {
             const jobsIds = document.getElementById('responseBody')
             return jobsIds.textContent
           })
 
-          const jobs = JSON.parse(result)
+          const jobs = JSON.parse(result);
+
+          //Remove jobs justs exits in Mongo with same date updated
 
           if (!jobs.offers) {
-            return []
+            return [];
           }
 
+          const offersFilter = [];
+ 
           for (let offer of jobs.offers) {
+            const job = await Job.findOne({id: offer.id});
+
+            if (job && moment(job.updated).isSame(offer.updated)) {
+              console.log('Ya existe la oferta y ya esta actualizada');
+                           
+            } else {
+              console.log('Añadimos');
+              offersFilter.push(offer);
+            }
+
+          }
+
+          console.log(jobs.offers.length);
+
+          if (!jobs.offers) {
+            return [];
+          }
+
+
+          for (let offer of offersFilter) {
+            console.log(offer.id, offer.updated);
+            
             await page.focus('#apiuri')
             const input = await page.$('#apiuri')
             await input.click({clickCount: 3})
             await page.keyboard.type(endpoint + '/' + offer.id)
 
             await page.$eval('#apiexecutionform', (form) => form.submit())
-            await page.waitFor(1000)
+            await page.waitFor(700)
 
             const jobDetail = await page.evaluate(() => {
               const job = document.getElementById('responseBody')
@@ -141,6 +174,7 @@ const infojobsApi = () => {
             totalResults: jobs.totalResults,
             currentResults: jobs.currentResults,
             totalPages: jobs.totalPages,
+            updatedOrNewRegisters: offersFilter.length, 
             offers: jobsDetail,
           }
         } else {
