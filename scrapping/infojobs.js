@@ -1,7 +1,7 @@
-'use strict';
+'use strict'
 
-const Job = require('../models/Job');
-const moment = require('moment');
+const Job = require('../models/Job')
+const moment = require('moment')
 
 
 const puppeteer = require('puppeteer')
@@ -75,21 +75,25 @@ const infojobsApi = () => {
     },
 
     getJobs: async (search = 'teletrabajo', maxResults = 200) => {
-      const endpoint = 'https://api.infojobs.net/api/7/offer';
+      const endpoint = 'https://api.infojobs.net/api/7/offer'
 
       //Select date today in format rfc3339
       const today = new Date()
       today.setHours('00', '00')
-      let todayRFC339 = today.toISOString().split('.')[0] + 'Z';
+      let todayRFC339 = today.toISOString().split('.')[0] + 'Z'
 
-
-      console.log(todayRFC339);
+      console.log(todayRFC339)
+;
+      todayRFC339 = '2020-05-21T22:00:24Z';
+      
+      console.log('Fecha: ', new Date().toLocaleString());
 
       try {
         const browser = await puppeteer.launch({headless: true})
-        const page = await browser.newPage();
-        
-        console.log('Entra en getJobs de InfoAPI (Scrapping)');
+        const page = await browser.newPage()
+
+        console.log('-------------START------------------------')
+        console.log('Trayendo ofertas del día de Infojobs...')
 
         const jobsDetail = []
 
@@ -117,39 +121,37 @@ const infojobsApi = () => {
             return jobsIds.textContent
           })
 
-          const jobs = JSON.parse(result);
+          const jobs = JSON.parse(result)
+
+          console.log('Total Ofertas del día: ', jobs.offers.length);
 
           //Remove jobs justs exits in Mongo with same date updated
 
           if (!jobs.offers) {
-            return [];
+            return []
           }
 
-          const offersFilter = [];
- 
+          const offersFilter = []
+
           for (let offer of jobs.offers) {
             const job = await Job.findOne({id: offer.id});
 
-            if (job && moment(job.updated).isSame(offer.updated)) {
-              console.log('Ya existe la oferta y ya esta actualizada');
-                           
-            } else {
-              console.log('Añadimos');
-              offersFilter.push(offer);
+            if (job === null || !moment(job.updated).isSame(offer.updated)) {
+              offersFilter.push(offer)
             }
-
           }
 
-          console.log(jobs.offers.length);
+          console.log('Total ofertas a importar: ', offersFilter.length)
+          console.log('Total ofertas existentes en Mongo: ', jobs.offers.length - offersFilter.length)
 
-          if (!jobs.offers) {
-            return [];
-          }
+          console.log('\n');
+          console.log('Trayendo los detalles de las ofertas...');
 
+          let count = 1;
 
           for (let offer of offersFilter) {
-            console.log(offer.id, offer.updated);
-            
+            console.log(count + '.- ' + offer.id + ' ' + offer.title);
+
             await page.focus('#apiuri')
             const input = await page.$('#apiuri')
             await input.click({clickCount: 3})
@@ -164,17 +166,16 @@ const infojobsApi = () => {
             })
 
             jobsDetail.push(JSON.parse(jobDetail))
+            count++;
           }
 
           await browser.close()
 
           return {
-            currentPage: jobs.currentPage,
-            pageSize: jobs.pageSize,
             totalResults: jobs.totalResults,
             currentResults: jobs.currentResults,
-            totalPages: jobs.totalPages,
-            updatedOrNewRegisters: offersFilter.length, 
+            updatedOrNewRegisters: offersFilter.length,
+            existRegistersInMongo: jobs.totalResults - offersFilter.length,
             offers: jobsDetail,
           }
         } else {
@@ -187,102 +188,17 @@ const infojobsApi = () => {
   }
 }
 
-const {getJobs} = infojobsApi()
-
-;(async () => {
-  const jobs = await getJobs('100% remoto', 3)
-  console.log(jobs)
-})()
-
-module.exports = infojobsApi
-
-// const { createJob } = api();
-
-// async function getJobsRecent(search = null, maxResults = 10) {
-//   try {
-//     const browser = await puppeteer.launch({headless: true})
-//     const page = await browser.newPage()
-
-//     const jobsExtensions = [];
-
-//     await page.goto(URL, {waitUntil: 'domcontentloaded'})
-
-//     await page.focus('#apiuri')
-
-//     if (search) {
-//       await page.keyboard.type(
-//         endpoint +
-//           '?q=' +
-//           search +
-//           '&order=updated-desc&' +
-//           'maxResults=' +
-//           maxResults,
-//       )
-//     } else {
-//       await page.keyboard.type(
-//         endpoint + '?order=updated-desc&' + 'maxResults=' + maxResults,
-//       )
-//     }
-
-//     await page.$eval('#apiexecutionform', (form) => form.submit())
-//     await page.waitFor(1000)
-
-//     const result = await page.evaluate(() => {
-//       const jobsIds = document.getElementById('responseBody')
-//       return jobsIds.textContent
-//     })
-
-//     // await browser.close();
-//     // return JSON.parse(result)
-
-//     const jobs = JSON.parse(result)
-//     const id = jobs.offers[0].id;
-//     console.log(jobs.offers.length);
-//   //  jobs.offers.forEach(async offer => {
-//     for (let offer of jobs.offers) {
-//       await page.focus('#apiuri');
-//       const input = await page.$('#apiuri');
-//       await input.click({clickCount: 3});
-//       await page.keyboard.type(endpoint + '/' + offer.id);
-
-//       await page.$eval('#apiexecutionform', (form) => form.submit());
-//       await page.waitFor(1000);
-
-//       const jobExtension = await page.evaluate(() => {
-//         const job = document.getElementById('responseBody')
-//         return job.textContent
-//       });
-
-//       jobsExtensions.push(JSON.parse(jobExtension));
-//    // })
-//     }
-//     await browser.close()
-
-//     return jobsExtensions;
-//   } catch (err) {
-//     console.log(err)
-//   }
-// }
+// const {getJobs} = infojobsApi();
 
 // (async () => {
-//   const jobs = await getJobsRecent('react teletrabajo', 1)
-//   console.log('Pasando Job a Wordpress', jobs);
+//   try {
+//     const result = await getJobs();
 
-//   const job = {
-//   title: jobs[0].title,
-//   content: jobs[0].description,
-//   meta: {
-//     _job_location: jobs[0].province.value,
-//     _application: jobs[0].link,
-//     _company_name: jobs[0].profile.name,
-//     _company_website: jobs[0].profile.web,
-//   },
-//   "job-categories": [30],
-//   "job-types": [6],
-// }
-
-//   const result = await createJob(job);
-//   console.log(result);
+//     process.exit(0)
+//   } catch (error) {
+//     console.log(error)
+//     process.exit(1)
+//   }
 // })()
 
-// module.exports = getJobsRecent
+module.exports = infojobsApi

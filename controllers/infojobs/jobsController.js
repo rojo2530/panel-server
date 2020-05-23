@@ -36,15 +36,10 @@ const jobsController = () => {
       try {
         req.setTimeout(0);
 
-        console.log('entra en load antes de la petición');
-
-        const jobs = await getJobs('teletrabajo', 150);
+        const jobs = await getJobs('teletrabajo', 200);
 
         const offers = []
         let registersUpdated = 0;
-
-
-        console.log('entra en load');
 
         if (jobs) {
           for (let offer of jobs.offers) {
@@ -59,8 +54,6 @@ const jobsController = () => {
               registersUpdated++;
               console.log('Job Updated', offer.id, offer.updateDate, offer.province);
 
-              
- 
               job.title = offer.title;
               job.province = province._id || job.province;
               job.link = offer.link || job.link;
